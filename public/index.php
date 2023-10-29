@@ -1,6 +1,6 @@
 <?php declare(strict_types=1);
-$server_private = openssl_pkey_get_private('file://../keys/private.pem');
-$server_public = openssl_pkey_get_public('file://../keys/public.pem');
+$server_private = rtrim(file_get_contents('../keys/private.key'));
+$server_public = rtrim(file_get_contents('../keys/public.key'));
 
 function base64encode(string $string): string
 {
@@ -52,7 +52,7 @@ function asn1retrieve(string $data): string
     return $data;
 }
 
-function send(string $payload, string $input, OpenSSLAsymmetricKey $server_private, OpenSSLAsymmetricKey $server_public): int
+function send(string $payload, string $input, string $server_private, string $server_public): int
 {
     /** @var object $subscription */
     $subscription = json_decode($input, false);
@@ -84,7 +84,7 @@ function send(string $payload, string $input, OpenSSLAsymmetricKey $server_priva
         'sub' => 'mailto:17925623+naoigcat@users.noreply.github.com',
     ]));
     $signature = '';
-    openssl_sign($claims, $signature, $server_private, 'sha256');
+    openssl_sign($claims, $signature, x962decode(base64decode($server_private)), 'sha256');
     $jwt = $claims . '.' . base64encode(asn1encode($signature));
     $curl = curl_init($endpoint);
     curl_setopt($curl, CURLOPT_HTTPHEADER, [
@@ -92,7 +92,7 @@ function send(string $payload, string $input, OpenSSLAsymmetricKey $server_priva
         'Content-Type: application/octet-stream',
         'Content-Length: ' . mb_strlen($post, '8bit'),
         'Content-Encoding: ' . $encoding,
-        'Authorization: vapid t=' . $jwt . ', k=' . base64encode(x962encode($server_public)),
+        'Authorization: vapid t=' . $jwt . ', k=' . $server_public,
     ]);
     curl_setopt($curl, CURLOPT_POSTFIELDS, $post);
     curl_exec($curl);
@@ -131,7 +131,7 @@ if ($input = file_get_contents('php://input')) {
 					if (subscription) return subscription;
 					return registration.pushManager.subscribe({
 						userVisibleOnly: true,
-						applicationServerKey: base64ToUInt8Array('<?php echo base64encode(x962encode($server_public)) ?>'),
+						applicationServerKey: base64ToUInt8Array('<?php echo $server_public ?>'),
 					});
 				});
 			}).then(function (subscription) {

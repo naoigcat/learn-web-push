@@ -2,7 +2,8 @@
 keygen:
 	cd keys ; \
 	openssl ecparam -genkey -name prime256v1 -noout -out private.pem ; \
-	openssl ec -in private.pem -pubout -out public.pem ;
+	openssl ec -in private.pem -outform DER | tail -c +8 | head -c 32 | base64 | tr -d = | tr /+ _- > private.key ; \
+	openssl ec -in private.pem -pubout -outform DER | tail -c 65 | base64 | tr -d = | tr /+ _- > public.key
 
 .PHONY: composer
 composer:
